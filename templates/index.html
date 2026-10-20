@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Emergency Response Planner</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="header">
+    <div>
+        <h1>🚑 Emergency Response Planner</h1>
+        <p>Smart emergency routing using graph algorithms</p>
+    </div>
+    <div class="system-status">
+        <span class="status-dot"></span>
+        System Online
+    </div>
+</header>
+
+<main class="container">
+    <section class="intro">
+        <div class="eyebrow">EMERGENCY MANAGEMENT SYSTEM</div>
+        <h2>Plan the fastest response route.</h2>
+        <p>Find the shortest emergency route, dispatch the nearest available response unit, and recommend the nearest hospital.</p>
+    </section>
+
+    <section class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon ambulance">🚑</div>
+            <div>
+                <strong id="available-count">0</strong>
+                <span>Available Units</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon fire">🔥</div>
+            <div>
+                <strong id="busy-count">0</strong>
+                <span>Busy Units</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon hospital">🏥</div>
+            <div>
+                <strong id="hospital-count">0</strong>
+                <span>Hospitals</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon emergency">🚨</div>
+            <div>
+                <strong id="emergency-count">0</strong>
+                <span>Emergencies</span>
+            </div>
+        </div>
+    </section>
+
+    <section class="main-grid">
+        <div>
+            <div class="card emergency-form-card">
+                <div class="eyebrow">EMERGENCY REQUEST</div>
+                <h2>Report an Emergency</h2>
+                <form id="emergency-form">
+                    <label>🚨 <span>Emergency Location</span>
+                        <select id="location" required>
+                            <option value="">Select location</option>
+                            <option value="Location A">Location A</option>
+                            <option value="Location B">Location B</option>
+                            <option value="Location C">Location C</option>
+                            <option value="Location D">Location D</option>
+                        </select>
+                    </label>
+                    <label>Emergency Type
+                        <select id="emergency-type" required>
+                            <option value="">Select emergency type</option>
+                            <option value="Medical">Medical</option>
+                            <option value="Accident">Accident</option>
+                            <option value="Fire">Fire</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </label>
+                    <label>Severity
+                        <select id="severity" required>
+                            <option value="">Select severity</option>
+                            <option value="Critical">Critical</option>
+                            <option value="High">High</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Low">Low</option>
+                        </select>
+                    </label>
+                    <button type="submit" class="primary-button">🚑 Dispatch Response Unit</button>
+                    <div id="emergency-message" class="message"></div>
+                </form>
+            </div>
+
+            <div class="card response-card">
+                <div class="eyebrow">RESPONSE RESULT</div>
+                <h2>Emergency Response</h2>
+                <div class="result-item">
+                    <span>Assigned Unit</span>
+                    <strong id="assigned-unit">—</strong>
+                </div>
+                <div class="result-item">
+                    <span>Shortest Route</span>
+                    <strong id="route-path">—</strong>
+                </div>
+                <div class="result-row">
+                    <div class="result-item">
+                        <span>Distance</span>
+                        <strong><span id="route-distance">—</span> km</strong>
+                    </div>
+                    <div class="result-item">
+                        <span>Estimated Time</span>
+                        <strong><span id="route-time">—</span> min</strong>
+                    </div>
+                </div>
+                <div class="result-item hospital-result">
+                    <span>Recommended Hospital</span>
+                    <strong id="recommended-hospital">—</strong>
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <div class="card map-card">
+                <div class="eyebrow">NETWORK MAP</div>
+                <h2>Emergency Network</h2>
+                <div id="map"></div>
+                <div class="map-legend">
+                    <span>📍 Emergency locations</span>
+                    <span>🛣️ Connected roads</span>
+                </div>
+            </div>
+
+            <div class="card queue-card">
+                <div class="eyebrow">ACTIVE REQUESTS</div>
+                <h2>Emergency Queue</h2>
+                <div id="emergency-queue">
+                    <p class="empty">No emergency requests yet.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="card resources-card">
+        <div class="eyebrow">RESPONSE RESOURCES</div>
+        <h2>Response Units</h2>
+        <p class="section-description">Monitor emergency response units and update their current status.</p>
+        <div id="response-units" class="resources-grid">
+            <p class="empty">Loading response units...</p>
+        </div>
+    </section>
+
+    <section class="card resources-card">
+        <div class="eyebrow">MEDICAL RESOURCES</div>
+        <h2>Available Hospitals</h2>
+        <p class="section-description">Hospitals available in the emergency response network.</p>
+        <div id="hospitals-list" class="resources-grid hospital-grid">
+            <p class="empty">Loading hospitals...</p>
+        </div>
+    </section>
+
+    <section class="card route-planner">
+        <div class="eyebrow">GRAPH ALGORITHM</div>
+        <h2>Shortest Route Planner</h2>
+        <p class="section-description">Calculate the shortest path between two locations using Dijkstra's algorithm.</p>
+        <div class="route-controls">
+            <label>Start Location
+                <select id="route-start">
+                    <option value="Location A">Location A</option>
+                    <option value="Location B">Location B</option>
+                    <option value="Location C">Location C</option>
+                    <option value="Location D">Location D</option>
+                </select>
+            </label>
+            <label>Destination
+                <select id="route-destination">
+                    <option value="Location D">Location D</option>
+                    <option value="Location A">Location A</option>
+                    <option value="Location B">Location B</option>
+                    <option value="Location C">Location C</option>
+                </select>
+            </label>
+            <button id="calculate-route" class="primary-button">Calculate Route</button>
+        </div>
+        <div class="route-results">
+            <div>
+                <span>Route</span>
+                <strong id="planner-route">—</strong>
+            </div>
+            <div>
+                <span>Distance</span>
+                <strong><span id="planner-distance">—</span> km</strong>
+            </div>
+            <div>
+                <span>Estimated Time</span>
+                <strong><span id="planner-time">—</span> min</strong>
+            </div>
+        </div>
+        <div id="route-message" class="message"></div>
+        <div class="comparison">
+            <h3>Route Comparison</h3>
+            <div class="comparison-grid">
+                <div>
+                    <span>Original Route</span>
+                    <strong id="original-route">—</strong>
+                </div>
+                <div>
+                    <span>Current Route</span>
+                    <strong id="alternative-route">—</strong>
+                </div>
+                <div>
+                    <span>Distance Difference</span>
+                    <strong><span id="distance-difference">—</span> km</strong>
+                </div>
+                <div>
+                    <span>Time Difference</span>
+                    <strong><span id="time-difference">—</span> min</strong>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="card blocked-card">
+        <div class="eyebrow">ROAD MANAGEMENT</div>
+        <h2>Blocked Roads</h2>
+        <div class="blocked-controls">
+            <label>Start
+                <select id="blocked-road-start">
+                    <option value="Location A">Location A</option>
+                    <option value="Location B">Location B</option>
+                    <option value="Location C">Location C</option>
+                    <option value="Location D">Location D</option>
+                </select>
+            </label>
+            <label>End
+                <select id="blocked-road-end">
+                    <option value="Location B">Location B</option>
+                    <option value="Location A">Location A</option>
+                    <option value="Location C">Location C</option>
+                    <option value="Location D">Location D</option>
+                </select>
+            </label>
+        </div>
+        <div class="button-row">
+            <button id="block-road-button" class="primary-button">🚧 Block Road</button>
+            <button id="unblock-road-button" class="secondary-button">✓ Unblock Road</button>
+        </div>
+        <div id="blocked-roads-list">
+            <p class="empty">No roads are currently blocked.</p>
+        </div>
+    </section>
+
+    <section class="info-card">
+        <div class="info-icon">📐</div>
+        <div>
+            <h3>Discrete Mathematics in Action</h3>
+            <p>This system represents the emergency network as a weighted graph. Locations are vertices, roads are edges, and road distances are edge weights. Dijkstra's algorithm is used to find the shortest emergency route.</p>
+        </div>
+    </section>
+</main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
