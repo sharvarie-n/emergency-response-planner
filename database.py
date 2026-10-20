@@ -1,182 +1,145 @@
-import sqlite3
 
-DATABASE_NAME = "emergency.db"
+import sqlite3
+import os
+
+DATABASE_NAME = os.path.join(os.path.dirname(os.path.abspath(__file__)), "emergency.db")
 
 
 def get_connection():
     return sqlite3.connect(DATABASE_NAME)
 
 
-connection = get_connection()
-cursor = connection.cursor()
-
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS emergency_requests (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    location TEXT NOT NULL,
-    emergency_type TEXT NOT NULL,
-    severity TEXT NOT NULL,
-    status TEXT NOT NULL
-)
-""")
-
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS response_units (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    unit_type TEXT NOT NULL,
-    location TEXT NOT NULL,
-    status TEXT NOT NULL
-)
-""")
-
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS hospitals (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    location TEXT NOT NULL,
-    emergency_services TEXT NOT NULL
-)
-""")
-
-connection.commit()
-connection.close()
-
-
-def get_response_units():
-
+def initialize_database():
     connection = get_connection()
     cursor = connection.cursor()
 
     cursor.execute("""
-    SELECT * FROM response_units
-    ORDER BY id
+    CREATE TABLE IF NOT EXISTS emergency_requests (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        location TEXT NOT NULL,
+        emergency_type TEXT NOT NULL,
+        severity TEXT NOT NULL,
+        status TEXT NOT NULL
+    )
     """)
 
-    units = cursor.fetchall()
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS response_units (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        unit_type TEXT NOT NULL,
+        location TEXT NOT NULL,
+        status TEXT NOT NULL
+    )
+    """)
 
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS hospitals (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        location TEXT NOT NULL,
+        emergency_services TEXT NOT NULL
+    )
+    """)
+
+    cursor.execute("SELECT COUNT(*) FROM response_units")
+    if cursor.fetchone()[0] == 0:
+        cursor.executemany("""
+        INSERT INTO response_units (name, unit_type, location, status)
+        VALUES (?, ?, ?, ?)
+        """, [
+            ("Ambulance 01", "Medical", "Location A", "Available"),
+            ("Ambulance 02", "Medical", "Location B", "Busy"),
+            ("Fire Unit 01", "Fire", "Location C", "Available")
+        ])
+
+    cursor.execute("SELECT COUNT(*) FROM hospitals")
+    if cursor.fetchone()[0] == 0:
+        cursor.executemany("""
+        INSERT INTO hospitals (name, location, emergency_services)
+        VALUES (?, ?, ?)
+        """, [
+            ("City Hospital", "Location B", "Available"),
+            ("Central Medical Center", "Location C", "Available"),
+            ("General Hospital", "Location D", "Available")
+        ])
+
+    connection.commit()
     connection.close()
 
+
+initialize_database()
+
+
+def get_response_units():
+    connection = get_connection()
+    cursor = connection.cursor()
+    cursor.execute("SELECT * FROM response_units ORDER BY id")
+    units = cursor.fetchall()
+    connection.close()
     return units
 
 
 def get_available_response_units():
-
     connection = get_connection()
     cursor = connection.cursor()
-
     cursor.execute("""
     SELECT * FROM response_units
     WHERE status = 'Available'
     ORDER BY id
     """)
-
     units = cursor.fetchall()
-
     connection.close()
-
     return units
 
 
 def get_hospitals():
-
     connection = get_connection()
     cursor = connection.cursor()
-
-    cursor.execute("""
-    SELECT * FROM hospitals
-    ORDER BY id
-    """)
-
+    cursor.execute("SELECT * FROM hospitals ORDER BY id")
     hospitals = cursor.fetchall()
-
     connection.close()
-
     return hospitals
 
 
-def add_emergency_request(
-    location,
-    emergency_type,
-    severity
-):
-
+def add_emergency_request(location, emergency_type, severity):
     connection = get_connection()
     cursor = connection.cursor()
-
     cursor.execute("""
     INSERT INTO emergency_requests
     (location, emergency_type, severity, status)
     VALUES (?, ?, ?, ?)
-    """, (
-        location,
-        emergency_type,
-        severity,
-        "Pending"
-    ))
-
+    """, (location, emergency_type, severity, "Pending"))
     emergency_id = cursor.lastrowid
-
     connection.commit()
     connection.close()
-
     return emergency_id
 
 
 def get_emergency_requests():
-
     connection = get_connection()
     cursor = connection.cursor()
-
-    cursor.execute("""
-    SELECT * FROM emergency_requests
-    ORDER BY id DESC
-    """)
-
+    cursor.execute("SELECT * FROM emergency_requests ORDER BY id DESC")
     emergencies = cursor.fetchall()
-
     connection.close()
-
     return emergencies
 
 
-def update_unit_status(
-    unit_id,
-    status
-):
-
+def update_unit_status(unit_id, status):
     connection = get_connection()
     cursor = connection.cursor()
-
     cursor.execute("""
-    UPDATE response_units
-    SET status = ?
-    WHERE id = ?
-    """, (
-        status,
-        unit_id
-    ))
-
+    UPDATE response_units SET status = ? WHERE id = ?
+    """, (status, unit_id))
     connection.commit()
     connection.close()
 
 
-def update_emergency_status(
-    emergency_id,
-    status
-):
-
+def update_emergency_status(emergency_id, status):
     connection = get_connection()
     cursor = connection.cursor()
-
     cursor.execute("""
-    UPDATE emergency_requests
-    SET status = ?
-    WHERE id = ?
-    """, (
-        status,
-        emergency_id
-    ))
-
+    UPDATE emergency_requests SET status = ? WHERE id = ?
+    """, (status, emergency_id))
     connection.commit()
     connection.close()
